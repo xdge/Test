@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Force-directed graph</title>
+    <style type="text/css">
+    	.container{
+    		margin: 0 auto;
+    		width:800px;
+    	}
+    	#forceMap{
+    		border:1px solid black;
+    	}
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center;">A force-directed graph visualization</h1>
+     
+     <div class="container"> 
+     <canvas id="forceMap" width="800" height="800"></canvas>
+     </div>
+
+   <script type="text/javascript">
+   
+   /*
+   1、模拟数据并将相关节点连接起来
+   nodeNum:节点数量
+   linkNum:除0号节点外各节点见的连接数量
+   */
+  function getData(nodeNum,linkNum) {
+   	const data = {nodes:new Array(nodeNum).fill(1),links:[]};
+   	data.nodes = data.nodes.map((d,id)=>{
+   		return{
+   			id,
+   			name:d,  			
+   			position:[0,0],
+   			childs:[]
+   		}
+   	});
+   // console.log(data);
+
+   //每个节点都和0号节点相连
+   data.nodes.forEach((d,id)=>{
+   	if(id!=0){
+   		data.links.push({
+   			source:0,
+   			target:id,
+   			sourceNode:data.nodes[0],
+   			targetNode:d
+   		});
+   	}
+   });
+   //随机抽取两个节点连接
+   const randomLink = ()=>{
+   	data.nodes.sort(()=>0.5-Math.random());
+   	data.links.push({
+   		source:data.nodes[0].id,
+   		target:data.nodes[1].id,
+   		sourceNode:data.nodes[0],
+   		targetNode:data.nodes[1]
+   	});
+   }
+   for(let i=0;i<linkNum;i++){
+   	randomLink();
+   }
+
+   //添加与各节点与相连节点信息
+   const obj = {};
+   data.nodes.forEach(d=>{
+   	if(!obj[d.id]){
+   		obj[d.id] = d;
+   	}
+   });
+   data.links.forEach(d=>{
+   	obj[d.source].childs.push(d.targetNode);
+   	obj[d.target].childs.push(d.sourceNode);
+   });
+
+      //console.log(data);
+     return data;
+
+   }
+
+   /* 
+     2、获取随机数
+   */
+    function getRandom(min,max){
+    	return Math.floor(min + Math.random()*(max-min));
+    }
+   /*
+       3、将各节点随机定位
+       data：各节点数据
+       size：画布大小
+   */
+    function randomPosition(data, size){  
+   	data.nodes.forEach(d => {
+   		let x = getRandom(0, size);
+   		let y = getRandom(0, size);  		
+   		d.position = [x, y];
+   		//console.log(d.position);
+   	});
+   }
+   /*
+       4、绘制图案
+       ctx：canvas上下文
+       data：各节点数据
+       size：画布大小
+   */
+   function render(ctx,data,size){
+   	ctx.clearRect(0,0,size,size); //清空画布区全部内容
+   	const box = 20;
+   	ctx.fillStyle = 'blue';
+   	data.links.forEach(d=>{
+   		let{sourceNode,targetNode} = d;
+   		let[x1,y1] = sourceNode.position;
+   		let[x2,y2] = targetNode.position;
+   		ctx.beginPath(); //新建一条path
+   		ctx.moveTo(x1,y1); //将画笔移动到一个节点处
+   		ctx.lineTo(x2,y2); //绘制一条从(x1,y1)到(x2,y2)的直线
+        ctx.closePath();
+        ctx.stroke();//实际地绘制路径
+   	});
+     data.nodes.forEach(d=> {
+     	if(d.id ==0){
+     		ctx.fillStyle='red';
+     	}
+     	else{
+     		ctx.fillStyle='blue';
+     	}
+     	let [x,y] = d.position;
+     	ctx.fillText(d.id,x-box*1.2,y+box/3);
+     	ctx.fillRect(x-box/2,y-box/2,box,box);
+     });
+   }
+    /*
+     力算法
+
+    */
+    function force(data,ctx,size){
+    	const{nodes,links} = data;
+
+    	const balanceDis = 300; //平衡位置间距
+    	const maxOffset = 10; //最大变化位移
+    	const minOffset = 0; //最小变化位移
+    	const count =120; //force次数
+    	const attenuation = 40; //力衰减
+    	const doforce = ()=>{
+             //计算
+             nodes.forEach(d=>{
+             	let [x1,y1] = d.position;
+             	nodes.forEach(e=>{
+             		if(d.id == e.id){
+             			return;
+             		}
+             		let [x2,y2] = e.position;
+             		//计算两点间距离
+             		let distance = Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
+             		//力衰减变量
+             		let forceOffset = 0;
+             		let x3,y3;
+             		//如果大于平衡间距，靠拢；如果小于平衡间距，排斥。
+                    if(distance>balanceDis){
+                    	forceOffset = (distance-balanceDis)/attenuation; 
+                    	if(forceOffset>maxOffset){
+                    		forceOffset = maxOffset;
+                    	}
+                    	else if(forceOffset<minOffset){
+                    		forceOffset = minOffset
+                    	}  
+                    	forceOffset += e.childs.length/attenuation; 
+
+                        //相似三角形原理求e的新坐标
+                    	let k = forceOffset/distance;
+                    	x3 = x2-k*(x2-x1);
+                    	y3 = y2-k*(y2-y1);                	
+                    }
+                    else if(distance<balanceDis){
+                    	forceOffset = (balanceDis-distance)/attenuation;
+                    	if(forceOffset>maxOffset){
+                    		forceOffset = maxOffset;
+                    	}
+                    	else if(forceOffset<minOffset){
+                    		forceOffset = minOffset
+                    	} 
+                    	forceOffset += e.childs.length/attenuation;
+                    	//相似三角形原理求e的新坐标
+                    	let k = forceOffset/(distance+forceOffset);
+                    	x3 = (k*x1-x2)/(k-1);
+                    	y3 = (k*y1-y2)/(k-1);
+
+                    }
+                    else{
+                    	x3 = x2;
+                    	y3 = y2;
+                    }
+
+
+                    //边界调整
+                    if(x3>size){
+                    	x3 -= 10;
+                    }
+                    if(x3<0){
+                    	x3 += 10;
+                    }
+                    if(y3>size){
+                    	y3 -= 10;
+                    }
+                    if(y3<0){
+                        y3 += 10;
+                    }
+                   e.position = [x3,y3];
+                  
+
+             	});
+             });
+    	  }
+        let countForce = 0;
+        /*function doSetTimeout(i){
+        	setTimeout((i)=>{
+        		doforce();
+        		render(ctx,data,size);
+        	},500);
+        }
+        for(let i=0;i<count;i++){
+        	doSetTimeout(i);
+        }*/
+       /* for(let i=0;i<count;i++){
+        	setTimeout(()=>{
+        		doforce();
+        		render(ctx,data,size);
+        	},50)
+        }*/
+        //这里写一个递归的函数forceRun，对图进行多次force，setTimeout要等上一个执行完才执行下一个，不能用for循环
+        const forceRun =() =>{
+        	setTimeout(() =>{
+        		countForce++;
+        		if(countForce>count){
+        			return;
+        		}
+        		doforce();
+        		render(ctx,data,size);
+        		forceRun();
+        	},35)
+
+        }
+        forceRun();
+       
+
+    }
+
+
+    window.onload = function main (){
+    	const size = 800;
+    	//1、设置数据
+    	const data = getData(30,30);
+    	//2、随机定位
+    	randomPosition(data,size);
+    	//3、绘制
+    	let cav = document.getElementById('forceMap');
+    	let ctx = cav.getContext('2d');
+    	render(ctx,data,size);
+    	//4、执行力算法
+    	force(data,ctx,size);
+    }
+
+
+  
+   </script>    
+</body>
+</html>
