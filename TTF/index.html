@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="utf-8" />
+    <title>Script</title>
+    <style type="text/css">
+    .text{
+        position: relative;
+        text-align: center;
+    }
+    .boxes{
+        height: 450px;
+        width: 500px;
+        font-size:18px; 
+        color:black;
+        resize: none;
+        overflow-x: hidden;
+        overflow-y: scroll;       
+    } 
+    #doBtn,#goBtn,#dogoBtn{
+     height: 70px;
+     width: 166px;
+     font-size:30px;
+     
+    }
+    </style>
+</head>
+<body>
+    <div class="text">
+    <h1>Text Converter</h1>
+    <textarea  class="boxes"  id="source"></textarea> 
+    <button id="doBtn" type="button">Do</button>
+    <button id="goBtn" type="button">Go</button>
+    <button id="dogoBtn" type="button">Dogo</button>
+    </div>
+    <script src="js/jquery-1.12.4.min.js"></script>
+    <script src="js/main.js"></script>  
+</body>
+</html>
